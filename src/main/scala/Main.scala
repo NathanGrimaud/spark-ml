@@ -7,8 +7,9 @@ import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 import org.apache.log4j.{Level, Logger}
-import spark.implicits._
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
+import org.apache.spark.ml.feature.{HashingTF,IDF}
+
 // https://towardsdatascience.com/multi-class-text-classification-with-pyspark-7d78d022ed35
 
 case class LabeledText(category: Integer, text: String)
@@ -90,17 +91,21 @@ object ML{
 
   }
 
+  case class Log(text:String, value: Int)
+
   def predict(spark: SparkSession, log:String){
     val model = PipelineModel.load("lrModel")
+    val parsedLog = Log(log,4)
     import spark.implicits._
     // from implicits :
-    val logs = List(log)
+    val logs = List(parsedLog)
     val df = logs.toDF()
+    df.printSchema()
 
     val predictions = model.transform(df)
     predictions
       .select("text","label","probability","prediction")
-      .show()
+      .show(50)
   }
 }
 
@@ -114,9 +119,9 @@ object Main extends App{
     .master("local")
     .getOrCreate()
 
-  //ML.train(spark)
+  ML.train(spark)
 
-  ML.predict(spark, "déc. 28 15:23:29 localhost.localdomain mysql[1911]: mysql appears to still be running with PID 2165. Start aborted.")
+  ML.predict(spark, "déc. 29 17:46:34 localhost.localdomain unix_chkpwd[2427]: password check failed for user (root)")
 
   spark.stop()
 
