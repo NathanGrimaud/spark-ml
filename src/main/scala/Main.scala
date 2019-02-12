@@ -24,8 +24,9 @@ object ML{
       .csv("parsed.csv")
       .na
       .drop()
-    println("-------------------- count ----------------------")
+
     df.printSchema()
+
 
     val regexTokenizer =  new RegexTokenizer()
       .setInputCol("text")
@@ -54,7 +55,9 @@ object ML{
           regexTokenizer,
           stopWordsRemover,
           countVectorizer,
-          stringIndexer)
+          stringIndexer,
+
+        )
         )
 
     val pipelineFit = pipeline.fit(df)
@@ -62,18 +65,22 @@ object ML{
     dataset.show(20)
     println(df.count())
     val Array(trainingData, testData) = dataset.randomSplit(Array(0.7, 0.3),seed= 100)
-    println("Training Dataset Count: ")
-    println(trainingData.count())
-    println("Test Dataset Count: ")
-    println(testData.count())
+    println(s"Training Dataset Count: ${trainingData.count()}")
+    println(s"Test Dataset Count: ${testData.count()}")
+
 
     val lr = new LogisticRegression()
       .setMaxIter(20)
       .setRegParam(0.3)
       .setElasticNetParam(0.0)
 
-    val lrModel = lr.fit(trainingData)
-    lrModel.save("lrModel")
+    val lrPipeline = new Pipeline()
+      .setStages(Array(
+        // implement tf-idf here
+        lr
+      ))
+    val lrModel = lrPipeline.fit(trainingData)
+    lrModel.write.overwrite.save("lrModel")
     val predictions = lrModel.transform(testData)
 
     // our row is like : 
@@ -89,12 +96,15 @@ object ML{
 
     val accuracy = evaluator.evaluate(predictions)
 
-    println("accuracy : " + accuracy)
+    println(s"accuracy : ${accuracy}")
 
   }
 
   def predict(spark: SparkSession, log:String){
+    val model = PipelineModel.load("lrModel")
 
+
+    model.
   }
 }
 
@@ -108,9 +118,9 @@ object Main extends App{
     .master("local")
     .getOrCreate()
 
-  ML.train(spark)
+  //ML.train(spark)
 
- // ML.predict(spark, "déc. 28 15:23:29 localhost.localdomain mysql[1911]: mysql appears to still be running with PID 2165. Start aborted.")
+  ML.predict(spark, "déc. 28 15:23:29 localhost.localdomain mysql[1911]: mysql appears to still be running with PID 2165. Start aborted.")
 
   spark.stop()
 
