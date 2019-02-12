@@ -2,11 +2,12 @@ import org.apache.spark.ml.{Pipeline, PipelineModel}
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.{CountVectorizer, RegexTokenizer, StopWordsRemover, StringIndexer}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Encoders, SQLContext, SparkSession}
+import org.apache.spark.sql.{Encoders, SQLContext, SparkSession, Row, DataFrame, Dataset}
 import org.apache.spark.ml.classification.LogisticRegression
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 import org.apache.log4j.{Level, Logger}
+import spark.implicits._
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 // https://towardsdatascience.com/multi-class-text-classification-with-pyspark-7d78d022ed35
 
@@ -27,6 +28,8 @@ object ML{
 
     df.printSchema()
 
+    // split the input to get data on wich we can test our model
+    val Array(trainingData, testData) = df.randomSplit(Array(0.7, 0.3),seed= 100)
 
     val regexTokenizer =  new RegexTokenizer()
       .setInputCol("text")
@@ -49,6 +52,11 @@ object ML{
     .setInputCol("value")
         .setOutputCol("label")
 
+    val lr = new LogisticRegression()
+      .setMaxIter(20)
+      .setRegParam(0.3)
+      .setElasticNetParam(0.0)
+
     val pipeline = new Pipeline()
       .setStages(
         Array(
@@ -56,30 +64,12 @@ object ML{
           stopWordsRemover,
           countVectorizer,
           stringIndexer,
-
+          //implement tf-idf here
+          lr
         )
         )
 
-    val pipelineFit = pipeline.fit(df)
-    val dataset = pipelineFit.transform(df)
-    dataset.show(20)
-    println(df.count())
-    val Array(trainingData, testData) = dataset.randomSplit(Array(0.7, 0.3),seed= 100)
-    println(s"Training Dataset Count: ${trainingData.count()}")
-    println(s"Test Dataset Count: ${testData.count()}")
-
-
-    val lr = new LogisticRegression()
-      .setMaxIter(20)
-      .setRegParam(0.3)
-      .setElasticNetParam(0.0)
-
-    val lrPipeline = new Pipeline()
-      .setStages(Array(
-        // implement tf-idf here
-        lr
-      ))
-    val lrModel = lrPipeline.fit(trainingData)
+    val lrModel = pipeline.fit(trainingData)
     lrModel.write.overwrite.save("lrModel")
     val predictions = lrModel.transform(testData)
 
@@ -102,9 +92,15 @@ object ML{
 
   def predict(spark: SparkSession, log:String){
     val model = PipelineModel.load("lrModel")
+    import spark.implicits._
+    // from implicits :
+    val logs = List(log)
+    val df = logs.toDF()
 
-
-    model.
+    val predictions = model.transform(df)
+    predictions
+      .select("text","label","probability","prediction")
+      .show()
   }
 }
 
