@@ -40,18 +40,29 @@ object ML{
     val stopwords = Array("is")
     val stopWordsRemover = new StopWordsRemover()
         .setInputCol("words")
-        .setOutputCol("filtred")
+        .setOutputCol("filtered")
         .setStopWords(stopwords)
 
-    val countVectorizer = new CountVectorizer()
-        .setInputCol("filtred")
-        .setOutputCol("features")
-        .setVocabSize(10000)
-        .setMinDF(5)
+    //val countVectorizer = new CountVectorizer()
+    //  .setInputCol("filtred")
+    // .setOutputCol("features")
+    //.setVocabSize(10000)
+    //.setMinDF(5)
+
+    val hashingTF = new HashingTF()
+      .setInputCol("filtered")
+      .setOutputCol("rawFeatures")
+      .setNumFeatures(10000)
+
+    val idf = new IDF()
+      .setInputCol("rawFeatures")
+      .setOutputCol("features")
+      .setMinDocFreq(5)
 
     val stringIndexer = new StringIndexer()
     .setInputCol("value")
         .setOutputCol("label")
+
 
     val lr = new LogisticRegression()
       .setMaxIter(20)
@@ -63,7 +74,8 @@ object ML{
         Array(
           regexTokenizer,
           stopWordsRemover,
-          countVectorizer,
+          hashingTF,
+          idf,
           stringIndexer,
           //implement tf-idf here
           lr
